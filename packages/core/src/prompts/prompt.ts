@@ -41,6 +41,7 @@ const keys = new Set(['up', 'down', 'left', 'right', 'space', 'enter']);
 export interface PromptOptions<Self extends Prompt> {
 	render(this: Omit<Self, 'prompt'>): string | void;
 	placeholder?: string;
+	autocomplete?: ((value: any) => string | void) | undefined;
 	initialValue?: any;
 	validate?: ((value: any) => string | void) | undefined;
 	input?: Readable;
@@ -165,6 +166,13 @@ export default class Prompt {
 		}
 		if (char && (char.toLowerCase() === 'y' || char.toLowerCase() === 'n')) {
 			this.emit('confirm', char.toLowerCase() === 'y');
+		}
+		if (char === '\t' && this.opts.autocomplete) {
+			const value = this.opts.autocomplete(this.value);
+			if (value) {
+				this.rl.write(value);
+				this.emit('value', value);
+			}
 		}
 		if (char === '\t' && this.opts.placeholder) {
 			if (!this.value) {
