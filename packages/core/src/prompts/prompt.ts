@@ -83,7 +83,7 @@ export default class Prompt {
 		const sink = new WriteStream(0);
 		sink._write = (chunk, encoding, done) => {
 			if (this._track) {
-				this.value = this.rl.line.replace(/\t/g, '');
+				this.value = this.parseValue(this.rl.line.replace(/\t/g, ''));
 				this._cursor = this.rl.cursor;
 				this.emit('value', this.value);
 			}
@@ -124,6 +124,36 @@ export default class Prompt {
 				resolve(cancel);
 			});
 		});
+	}
+
+	private parseValue(input: string) {
+		let line = '';
+		let cursorPosition = 0;
+
+		const escapeSequenceRegex = /\u001b\[[0-9]*[A-Z]/g;
+		let match;
+		while ((match = escapeSequenceRegex.exec(input)) !== null) {
+			const sequence = match[0];
+			const index = match.index;
+
+			// Add text up to the escape sequence to the line
+			line += input.substring(cursorPosition, index);
+			cursorPosition = index + sequence.length;
+
+			// Process the escape sequence
+			if (sequence === '\u001b[6D') {
+				// Cursor left
+				line = line.substring(0, Math.max(0, line.length - 6));
+			} else if (sequence === '\u001b[J') {
+				// Clear screen from cursor
+				line = '';
+			}
+		}
+
+		// Add any remaining text after the last escape sequence
+		line += input.substring(cursorPosition);
+
+		return line;
 	}
 
 	private subscribers = new Map<string, { cb: (...args: any) => any; once?: boolean }[]>();
@@ -167,17 +197,21 @@ export default class Prompt {
 		if (char && (char.toLowerCase() === 'y' || char.toLowerCase() === 'n')) {
 			this.emit('confirm', char.toLowerCase() === 'y');
 		}
-		if (char === '\t' && this.opts.autocomplete) {
-			const value = this.opts.autocomplete(this.value);
-			if (value) {
-				this.rl.write(value);
-				this.emit('value', value);
-			}
-		}
-		if (char === '\t' && this.opts.placeholder) {
-			if (!this.value) {
-				this.rl.write(this.opts.placeholder);
-				this.emit('value', this.opts.placeholder);
+		if (char === '\t') {
+			if (this.opts.autocomplete) {
+				let value = this.opts.autocomplete(this.value);
+				if (value) {
+					this.rl.write(cursor.move(-999, 0));
+					this.rl.write(erase.down(1));
+					this.rl.write(value);
+
+					this.emit('value', value);
+				}
+			} else if (this.opts.placeholder) {
+				if (!this.value) {
+					this.rl.write(this.opts.placeholder);
+					this.emit('value', this.opts.placeholder);
+				}
 			}
 		}
 		if (char) {

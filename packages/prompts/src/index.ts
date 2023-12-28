@@ -8,7 +8,7 @@ import {
 	SelectKeyPrompt,
 	SelectPrompt,
 	State,
-	TextPrompt
+	TextPrompt,
 } from '@clack/core';
 import isUnicodeSupported from 'is-unicode-supported';
 import color from 'picocolors';
@@ -99,10 +99,12 @@ export interface TextOptions {
 	defaultValue?: string;
 	initialValue?: string;
 	validate?: (value: string) => string | void;
+	autocomplete?: ((value: any) => string | void) | undefined;
 }
 export const text = (opts: TextOptions) => {
 	return new TextPrompt({
 		validate: opts.validate,
+		autocomplete: opts.autocomplete,
 		placeholder: opts.placeholder,
 		defaultValue: opts.defaultValue,
 		initialValue: opts.initialValue,
